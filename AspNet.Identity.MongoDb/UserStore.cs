@@ -55,7 +55,7 @@ namespace AspNet.Identity.MongoDb
         /// <param name="userCollectionName">The user collection name in MongoDB.</param>
         /// <param name="describer">The <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> used to describe store errors.</param>
         public UserStore(string connectionUri, string userCollectionName = DefaultCollectionName, IdentityErrorDescriber describer = null)
-          : this(describer ?? new IdentityErrorDescriber())
+          : this(describer)
         {
             if (string.IsNullOrWhiteSpace(connectionUri)) throw new ArgumentNullException(nameof(connectionUri));
             if (string.IsNullOrWhiteSpace(userCollectionName)) throw new ArgumentNullException(nameof(userCollectionName));
@@ -74,7 +74,7 @@ namespace AspNet.Identity.MongoDb
         /// <param name="userCollectionName">The role collection name in MongoDB.</param>
         /// <param name="describer">The <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> used to describe store errors.</param>
         public UserStore(IMongoDatabase databse, string userCollectionName = DefaultCollectionName, IdentityErrorDescriber describer = null)
-          : this(describer ?? new IdentityErrorDescriber())
+          : this(describer)
         {
             if (string.IsNullOrWhiteSpace(userCollectionName)) throw new ArgumentNullException(nameof(userCollectionName));
 
@@ -106,6 +106,9 @@ namespace AspNet.Identity.MongoDb
         /// </summary>
         private readonly string _collectionName;
 
+        /// <summary>
+        /// The user collection.
+        /// </summary>
         private IMongoCollection<TUser> UserCollection => _database.GetCollection<TUser>(_collectionName);
 
         #endregion
@@ -323,23 +326,25 @@ namespace AspNet.Identity.MongoDb
         }
 
         /// <inheritdoc />
-        public virtual async Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken = default(CancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
             if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException(nameof(userId));
 
-            return await UserCollection.Find(u => u.Id.Equals(userId)).SingleOrDefaultAsync(cancellationToken);
+            var id = ConvertIdFromString(userId);
+
+            return UserCollection.Find(u => u.Id.Equals(id)).SingleOrDefaultAsync(cancellationToken);
         }
 
         /// <inheritdoc />
-        public virtual async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken = default(CancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
             if (string.IsNullOrWhiteSpace(normalizedUserName)) throw new ArgumentException(nameof(normalizedUserName));
 
-            return await UserCollection.Find(u => u.NormalizedUserName == normalizedUserName).SingleOrDefaultAsync(cancellationToken);
+            return UserCollection.Find(u => u.NormalizedUserName == normalizedUserName).SingleOrDefaultAsync(cancellationToken);
         }
 
         #endregion
@@ -364,6 +369,7 @@ namespace AspNet.Identity.MongoDb
             if (user == null) throw new ArgumentNullException(nameof(user));
 
             IList<Claim> result = user.Claims.Select(c => new Claim(c.ClaimType, c.ClaimValue)).ToList();
+
             return Task.FromResult(result);
         }
 

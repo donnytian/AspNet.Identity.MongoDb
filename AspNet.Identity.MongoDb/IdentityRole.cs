@@ -1,19 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace AspNet.Identity.MongoDb
 {
     /// <summary>Represents a role in the identity system</summary>
     /// <typeparam name="TKey">The type used for the primary key for the role.</typeparam>
-    public class IdentityRole<TKey> where TKey : IEquatable<TKey>
+    /// <typeparam name="TIdentityClaim">The type of the class representing a role claim.</typeparam>
+    public class IdentityRole<TKey, TIdentityClaim>
+        where TKey : IEquatable<TKey>
+        where TIdentityClaim : IdentityClaim
     {
         /// <summary>
         /// Initializes a new instance of <see cref="T:Microsoft.AspNetCore.Identity.IdentityRole`1" />.
         /// </summary>
         public IdentityRole()
         {
-            Claims = new List<IdentityClaim>();
+            Claims = new List<TIdentityClaim>();
         }
 
         /// <inheritdoc />
@@ -23,6 +25,7 @@ namespace AspNet.Identity.MongoDb
         /// <param name="roleName">The role name.</param>
         public IdentityRole(string roleName) : this()
         {
+            // ReSharper disable once VirtualMemberCallInConstructor
             Name = roleName;
         }
 
@@ -38,7 +41,7 @@ namespace AspNet.Identity.MongoDb
         /// <summary>
         /// Gets the claims for the current role.
         /// </summary>
-        public virtual List<IdentityClaim> Claims { get; }
+        public virtual List<TIdentityClaim> Claims { get; }
 
         /// <summary>Returns the name of the role.</summary>
         /// <returns>The name of the role.</returns>

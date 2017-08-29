@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace AspNet.Identity.MongoDb
 {
@@ -8,6 +7,7 @@ namespace AspNet.Identity.MongoDb
     /// <typeparam name="TKey">The type used for the primary key for the user.</typeparam>
     /// <typeparam name="TIdentityClaim">The type representing a claim.</typeparam>
     /// <typeparam name="TIdentityUserLogin">The type representing a user external login.</typeparam>
+    /// <typeparam name="TIdentityUserToken">The type representing a user token.</typeparam>
     public class IdentityUser<TKey, TIdentityClaim, TIdentityUserLogin, TIdentityUserToken>
         where TKey : IEquatable<TKey>
         where TIdentityClaim : IdentityClaim, new()
@@ -24,12 +24,14 @@ namespace AspNet.Identity.MongoDb
             Tokens = new List<TIdentityUserToken>();
         }
 
+        /// <inheritdoc />
         /// <summary>
         /// Initializes a new instance of <see cref="T:Microsoft.AspNetCore.Identity.IdentityUser`1" />.
         /// </summary>
         /// <param name="userName">The user name.</param>
         public IdentityUser(string userName) : this()
         {
+            // ReSharper disable once VirtualMemberCallInConstructor
             UserName = userName;
         }
 
