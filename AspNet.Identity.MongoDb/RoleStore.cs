@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 // ReSharper disable RedundantExtendsListEntry
 
@@ -36,6 +37,23 @@ namespace AspNet.Identity.MongoDb
         }
 
         /// <inheritdoc />
+        /// <summary>Creates a new instance of the store.</summary>
+        /// <param name="options">The options used to access the MongoDB.</param>
+        public RoleStore(IOptions<MongoDbOptions> options)
+            : this(options.Value.ErrorDescriber)
+        {
+            if (string.IsNullOrWhiteSpace(options.Value?.ConnectionString)) throw new ArgumentNullException("ConnectionString");
+
+            var dbOptions = options.Value;
+            var mongoUrl = new MongoUrl(dbOptions.ConnectionString);
+
+            if (string.IsNullOrWhiteSpace(mongoUrl.DatabaseName)) throw new ArgumentNullException("Missing database name in connection string");
+
+            var database = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
+            _roleCollection = database.GetCollection<TRole>(dbOptions.RoleCollectionName ?? DefaultCollectionName);
+        }
+
+        /// <inheritdoc />
         /// <summary>
         /// Constructs a new instance of <see cref="T:Microsoft.AspNetCore.Identity.EntityFrameworkCore.RoleStore`5" />.
         /// </summary>
@@ -52,24 +70,8 @@ namespace AspNet.Identity.MongoDb
 
             if (string.IsNullOrWhiteSpace(mongoUrl.DatabaseName)) throw new ArgumentNullException("Missing database name in connection string");
 
-            _database = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
-            _collectionName = roleCollectionName;
-
-            ErrorDescriber = describer ?? new IdentityErrorDescriber();
-        }
-
-        /// <inheritdoc />
-        /// <summary>Creates a new instance of the store.</summary>
-        /// <param name="databse">The database object.</param>
-        /// <param name="roleCollectionName">The role collection name in MongoDB.</param>
-        /// <param name="describer">The <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> used to describe store errors.</param>
-        public RoleStore(IMongoDatabase databse, string roleCollectionName = DefaultCollectionName, IdentityErrorDescriber describer = null)
-            : this(describer)
-        {
-            if (string.IsNullOrWhiteSpace(roleCollectionName)) throw new ArgumentNullException(nameof(roleCollectionName));
-
-            _database = databse ?? throw new ArgumentNullException(nameof(databse));
-            _collectionName = roleCollectionName;
+            var database = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
+            _roleCollection = database.GetCollection<TRole>(roleCollectionName);
         }
 
         #endregion
@@ -82,28 +84,18 @@ namespace AspNet.Identity.MongoDb
         private bool _disposed;
 
         /// <summary>
-        /// The default collection name.
-        /// </summary>
-        private const string DefaultCollectionName = "AspNetRoles";
-
-        /// <summary>
-        /// The underline MongoDb database
-        /// </summary>
-        private readonly IMongoDatabase _database;
-
-        /// <summary>
-        /// The user collection name.
-        /// </summary>
-        private readonly string _collectionName;
-
-        /// <summary>
         /// The role collection.
         /// </summary>
-        private IMongoCollection<TRole> RoleCollection => _database.GetCollection<TRole>(_collectionName);
+        private readonly IMongoCollection<TRole> _roleCollection;
 
         #endregion
 
         #region Public Properties & Constants
+
+        /// <summary>
+        /// The default collection name.
+        /// </summary>
+        public const string DefaultCollectionName = "AspNetRoles";
 
         /// <summary>
         /// Gets or sets the <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> for any error that occurred with the current operation.
@@ -115,7 +107,7 @@ namespace AspNet.Identity.MongoDb
         #region IQueryableRoleStore
 
         /// <inheritdoc />
-        public virtual IQueryable<TRole> Roles => RoleCollection.AsQueryable();
+        public virtual IQueryable<TRole> Roles => _roleCollection.AsQueryable();
 
         #endregion
 
@@ -130,7 +122,7 @@ namespace AspNet.Identity.MongoDb
 
             try
             {
-                await RoleCollection.InsertOneAsync(role, cancellationToken: cancellationToken);
+                await _roleCollection.InsertOneAsync(role, cancellationToken: cancellationToken);
             }
             catch (Exception e)
             {
@@ -149,7 +141,7 @@ namespace AspNet.Identity.MongoDb
 
             try
             {
-                await RoleCollection.FindOneAndReplaceAsync(u => u.Id.Equals(role.Id), role, null, cancellationToken);
+                await _roleCollection.FindOneAndReplaceAsync(u => u.Id.Equals(role.Id), role, null, cancellationToken);
             }
             catch (Exception e)
             {
@@ -168,7 +160,7 @@ namespace AspNet.Identity.MongoDb
 
             try
             {
-                await RoleCollection.FindOneAndDeleteAsync(u => u.Id.Equals(role.Id), null, cancellationToken);
+                await _roleCollection.FindOneAndDeleteAsync(u => u.Id.Equals(role.Id), null, cancellationToken);
             }
             catch (Exception e)
             {
@@ -219,7 +211,7 @@ namespace AspNet.Identity.MongoDb
 
             var roleId = ConvertIdFromString(id);
 
-            return RoleCollection.Find(u => u.Id.Equals(roleId)).SingleOrDefaultAsync(cancellationToken);
+            return _roleCollection.Find(u => u.Id.Equals(roleId)).SingleOrDefaultAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -229,7 +221,7 @@ namespace AspNet.Identity.MongoDb
             ThrowIfDisposed();
             if (normalizedName == null) throw new ArgumentNullException(nameof(normalizedName));
 
-            return RoleCollection.Find(u => u.NormalizedName == normalizedName).SingleOrDefaultAsync(cancellationToken);
+            return _roleCollection.Find(u => u.NormalizedName == normalizedName).SingleOrDefaultAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -261,7 +253,7 @@ namespace AspNet.Identity.MongoDb
         /// <inheritdoc />
         public void Dispose()
         {
-            this._disposed = true;
+            _disposed = true;
         }
 
         #endregion

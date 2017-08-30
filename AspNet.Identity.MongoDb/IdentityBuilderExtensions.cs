@@ -15,10 +15,13 @@ namespace AspNet.Identity.MongoDb
         /// Adds an MongoDB implementation of identity information stores.
         /// </summary>
         /// <param name="builder">The <see cref="T:Microsoft.AspNetCore.Identity.IdentityBuilder" /> instance this method extends.</param>
+        /// <param name="setupAction">An action to configure the <see cref="T:AspNet.Identity.MongoDb.MongoDbOptions" />.</param>
         /// <returns>The <see cref="T:Microsoft.AspNetCore.Identity.IdentityBuilder" /> instance this method extends.</returns>
-        public static IdentityBuilder AddMongoDbStores(this IdentityBuilder builder)
+        public static IdentityBuilder AddMongoDbStores(this IdentityBuilder builder, Action<MongoDbOptions> setupAction)
         {
             AddStores(builder.Services, builder.UserType, builder.RoleType);
+            builder.Services.Configure(setupAction);
+
             return builder;
         }
 

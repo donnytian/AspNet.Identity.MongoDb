@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 // ReSharper disable RedundantExtendsListEntry
 
@@ -52,11 +53,28 @@ namespace AspNet.Identity.MongoDb
 
         /// <inheritdoc />
         /// <summary>Creates a new instance of the store.</summary>
+        /// <param name="options">The options used to access the MongoDB.</param>
+        public UserStore(IOptions<MongoDbOptions> options)
+          : this(options.Value.ErrorDescriber)
+        {
+            if (string.IsNullOrWhiteSpace(options.Value?.ConnectionString)) throw new ArgumentNullException("ConnectionString");
+
+            var dbOptions = options.Value;
+            var mongoUrl = new MongoUrl(dbOptions.ConnectionString);
+
+            if (string.IsNullOrWhiteSpace(mongoUrl.DatabaseName)) throw new ArgumentNullException("Missing database name in connection string");
+
+            var database = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
+            _userCollection = database.GetCollection<TUser>(dbOptions.UserCollectionName ?? DefaultCollectionName);
+        }
+
+        /// <inheritdoc />
+        /// <summary>Creates a new instance of the store.</summary>
         /// <param name="connectionUri">The connection URI used to access the MongoDB.</param>
         /// <param name="userCollectionName">The user collection name in MongoDB.</param>
         /// <param name="describer">The <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> used to describe store errors.</param>
         public UserStore(string connectionUri, string userCollectionName = DefaultCollectionName, IdentityErrorDescriber describer = null)
-          : this(describer)
+            : this(describer)
         {
             if (string.IsNullOrWhiteSpace(connectionUri)) throw new ArgumentNullException(nameof(connectionUri));
             if (string.IsNullOrWhiteSpace(userCollectionName)) throw new ArgumentNullException(nameof(userCollectionName));
@@ -65,22 +83,8 @@ namespace AspNet.Identity.MongoDb
 
             if (string.IsNullOrWhiteSpace(mongoUrl.DatabaseName)) throw new ArgumentNullException("Missing database name in connection string");
 
-            _database = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
-            _collectionName = userCollectionName;
-        }
-
-        /// <inheritdoc />
-        /// <summary>Creates a new instance of the store.</summary>
-        /// <param name="databse">The database object.</param>
-        /// <param name="userCollectionName">The role collection name in MongoDB.</param>
-        /// <param name="describer">The <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> used to describe store errors.</param>
-        public UserStore(IMongoDatabase databse, string userCollectionName = DefaultCollectionName, IdentityErrorDescriber describer = null)
-          : this(describer)
-        {
-            if (string.IsNullOrWhiteSpace(userCollectionName)) throw new ArgumentNullException(nameof(userCollectionName));
-
-            _database = databse ?? throw new ArgumentNullException(nameof(databse));
-            _collectionName = userCollectionName;
+            var database = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
+            _userCollection = database.GetCollection<TUser>(userCollectionName);
         }
 
         #endregion
@@ -93,28 +97,18 @@ namespace AspNet.Identity.MongoDb
         private bool _disposed;
 
         /// <summary>
-        /// The default collection name.
-        /// </summary>
-        private const string DefaultCollectionName = "AspNetUsers";
-
-        /// <summary>
-        /// The underline MongoDb database
-        /// </summary>
-        private readonly IMongoDatabase _database;
-
-        /// <summary>
-        /// The user collection name.
-        /// </summary>
-        private readonly string _collectionName;
-
-        /// <summary>
         /// The user collection.
         /// </summary>
-        private IMongoCollection<TUser> UserCollection => _database.GetCollection<TUser>(_collectionName);
+        private readonly IMongoCollection<TUser> _userCollection;
 
         #endregion
 
         #region Public Properties & Constants
+
+        /// <summary>
+        /// The default collection name.
+        /// </summary>
+        public const string DefaultCollectionName = "AspNetRoles";
 
         /// <summary>
         /// Gets or sets the <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> for any error that occurred with the current operation.
@@ -206,7 +200,7 @@ namespace AspNet.Identity.MongoDb
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
 
-            return UserCollection
+            return _userCollection
                 .Find(u => u.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey))
                 .SingleOrDefaultAsync(cancellationToken);
         }
@@ -278,7 +272,7 @@ namespace AspNet.Identity.MongoDb
 
             try
             {
-                await UserCollection.InsertOneAsync(user, cancellationToken: cancellationToken);
+                await _userCollection.InsertOneAsync(user, cancellationToken: cancellationToken);
             }
             catch (Exception e)
             {
@@ -297,7 +291,7 @@ namespace AspNet.Identity.MongoDb
 
             try
             {
-                await UserCollection.FindOneAndReplaceAsync(u => u.Id.Equals(user.Id), user, null, cancellationToken);
+                await _userCollection.FindOneAndReplaceAsync(u => u.Id.Equals(user.Id), user, null, cancellationToken);
             }
             catch (Exception e)
             {
@@ -316,7 +310,7 @@ namespace AspNet.Identity.MongoDb
 
             try
             {
-                await UserCollection.FindOneAndDeleteAsync(u => u.Id.Equals(user.Id), null, cancellationToken);
+                await _userCollection.FindOneAndDeleteAsync(u => u.Id.Equals(user.Id), null, cancellationToken);
             }
             catch (Exception e)
             {
@@ -335,7 +329,7 @@ namespace AspNet.Identity.MongoDb
 
             var id = ConvertIdFromString(userId);
 
-            return UserCollection.Find(u => u.Id.Equals(id)).SingleOrDefaultAsync(cancellationToken);
+            return _userCollection.Find(u => u.Id.Equals(id)).SingleOrDefaultAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -345,7 +339,7 @@ namespace AspNet.Identity.MongoDb
             ThrowIfDisposed();
             if (string.IsNullOrWhiteSpace(normalizedUserName)) throw new ArgumentException(nameof(normalizedUserName));
 
-            return UserCollection.Find(u => u.NormalizedUserName == normalizedUserName).SingleOrDefaultAsync(cancellationToken);
+            return _userCollection.Find(u => u.NormalizedUserName == normalizedUserName).SingleOrDefaultAsync(cancellationToken);
         }
 
         #endregion
@@ -413,7 +407,7 @@ namespace AspNet.Identity.MongoDb
             if (roleName == null) throw new ArgumentNullException(nameof(roleName));
 
             roleName = roleName.ToUpperInvariant();
-            return await UserCollection.Find(u => u.Roles.Contains(roleName)).ToListAsync(cancellationToken);
+            return await _userCollection.Find(u => u.Roles.Contains(roleName)).ToListAsync(cancellationToken);
         }
 
         #endregion
@@ -515,7 +509,7 @@ namespace AspNet.Identity.MongoDb
             ThrowIfDisposed();
             if (claim == null) throw new ArgumentNullException(nameof(claim));
 
-            return await UserCollection.Find(u => u.Claims.Any(c => c.Equals(claim))).ToListAsync(cancellationToken);
+            return await _userCollection.Find(u => u.Claims.Any(c => c.Equals(claim))).ToListAsync(cancellationToken);
         }
 
         #endregion
@@ -636,7 +630,7 @@ namespace AspNet.Identity.MongoDb
             ThrowIfDisposed();
             if (string.IsNullOrWhiteSpace(normalizedEmail)) throw new ArgumentException(nameof(normalizedEmail));
 
-            return UserCollection.Find(u => u.NormalizedEmail == normalizedEmail).SingleOrDefaultAsync(cancellationToken);
+            return _userCollection.Find(u => u.NormalizedEmail == normalizedEmail).SingleOrDefaultAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -796,7 +790,7 @@ namespace AspNet.Identity.MongoDb
         #region IQueryableUserStore
 
         /// <inheritdoc />
-        public virtual IQueryable<TUser> Users => UserCollection.AsQueryable();
+        public virtual IQueryable<TUser> Users => _userCollection.AsQueryable();
 
         #endregion
 
