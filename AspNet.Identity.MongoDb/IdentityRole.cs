@@ -1,9 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
+using MongoDB.Bson.Serialization.Attributes;
+
+// ReSharper disable VirtualMemberCallInConstructor
 
 namespace AspNet.Identity.MongoDb
 {
-    /// <summary>Represents a role in the identity system</summary>
+    /// <inheritdoc />
+    /// <summary>
+    /// Represents a role in the Identity Framework.
+    /// </summary>
+    public class IdentityRole : IdentityRole<string>
+    {
+        /// <summary>
+        /// Initializes a new instance of <see cref="T:Microsoft.AspNetCore.Identity.IdentityRole" />.
+        /// </summary>
+        /// <remarks>
+        /// The Id property is initialized to form a new GUID string value.
+        /// </remarks>
+        public IdentityRole()
+        {
+            Id = Guid.NewGuid().ToString();
+        }
+    }
+
+    /// <inheritdoc />
+    /// <summary>
+    /// Represents a role in the Identity Framework.
+    /// </summary>
+    /// <typeparam name="TKey">The type used for the primary key for the role.</typeparam>
+    public class IdentityRole<TKey> : IdentityRole<TKey, IdentityClaim> where TKey : IEquatable<TKey> { }
+
+    /// <summary>Represents a role in the Identity Framework.</summary>
     /// <typeparam name="TKey">The type used for the primary key for the role.</typeparam>
     /// <typeparam name="TIdentityClaim">The type of the class representing a role claim.</typeparam>
     public class IdentityRole<TKey, TIdentityClaim>
@@ -30,6 +58,7 @@ namespace AspNet.Identity.MongoDb
         }
 
         /// <summary>Gets or sets the primary key for this role.</summary>
+        [BsonId]
         public virtual TKey Id { get; set; }
 
         /// <summary>Gets or sets the name for this role.</summary>

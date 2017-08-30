@@ -15,13 +15,14 @@ namespace AspNet.Identity.MongoDb
     /// Represents a new instance of a persistence store for the specified user and role types.
     /// </summary>
     /// <typeparam name="TUser">The type representing a user.</typeparam>
-    /// <typeparam name="TKey">The type of the primary key for a role.</typeparam>
+    /// <typeparam name="TKey">The type of the primary key for a user.</typeparam>
     /// <typeparam name="TIdentityClaim">The type representing a claim.</typeparam>
     /// <typeparam name="TIdentityUserLogin">The type representing a user external login.</typeparam>
     /// <typeparam name="TUserToken">The type representing a user token.</typeparam>
     public class UserStore<TUser, TKey, TIdentityClaim, TIdentityUserLogin, TUserToken> :
         IUserLoginStore<TUser>,
         IUserStore<TUser>,
+        IUserRoleStore<TUser>,
         IDisposable,
         IUserClaimStore<TUser>,
         IUserPasswordStore<TUser>,
@@ -345,6 +346,74 @@ namespace AspNet.Identity.MongoDb
             if (string.IsNullOrWhiteSpace(normalizedUserName)) throw new ArgumentException(nameof(normalizedUserName));
 
             return UserCollection.Find(u => u.NormalizedUserName == normalizedUserName).SingleOrDefaultAsync(cancellationToken);
+        }
+
+        #endregion
+
+        #region IUserRoleStore
+
+        /// <inheritdoc />
+        public virtual Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfDisposed();
+            if (user == null) throw new ArgumentNullException(nameof(user));
+            if (roleName == null) throw new ArgumentNullException(nameof(roleName));
+
+            if (!user.Roles.Contains(roleName, StringComparer.InvariantCultureIgnoreCase))
+            {
+                user.Roles.Add(roleName.ToUpperInvariant());
+            }
+            else
+            {
+                throw new InvalidOperationException($"User [{user.UserName}] already in role [{roleName}]");
+            }
+
+            return Task.FromResult(0);
+        }
+
+        /// <inheritdoc />
+        public virtual Task RemoveFromRoleAsync(TUser user, string roleName, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfDisposed();
+            if (user == null) throw new ArgumentNullException(nameof(user));
+            if (roleName == null) throw new ArgumentNullException(nameof(roleName));
+
+            user.Roles.RemoveAll(r => r.Equals(roleName, StringComparison.InvariantCultureIgnoreCase));
+
+            return Task.FromResult(0);
+        }
+
+        /// <inheritdoc />
+        public virtual Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfDisposed();
+            if (user == null) throw new ArgumentNullException(nameof(user));
+
+            return Task.FromResult<IList<string>>(user.Roles);
+        }
+
+        /// <inheritdoc />
+        public virtual Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfDisposed();
+            if (user == null) throw new ArgumentNullException(nameof(user));
+
+            return Task.FromResult(user.Roles.Contains(roleName, StringComparer.Ordinal));
+        }
+
+        /// <inheritdoc />
+        public virtual async Task<IList<TUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfDisposed();
+            if (roleName == null) throw new ArgumentNullException(nameof(roleName));
+
+            roleName = roleName.ToUpperInvariant();
+            return await UserCollection.Find(u => u.Roles.Contains(roleName)).ToListAsync(cancellationToken);
         }
 
         #endregion

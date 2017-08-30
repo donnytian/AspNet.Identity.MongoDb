@@ -1,9 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
+using MongoDB.Bson.Serialization.Attributes;
+
+// ReSharper disable VirtualMemberCallInConstructor
 
 namespace AspNet.Identity.MongoDb
 {
-    /// <summary>Represents a user in the identity system</summary>
+    /// <inheritdoc />
+    /// <summary>
+    /// Represents a user with string as ID in the identity.
+    /// </summary>
+    public class IdentityUser : IdentityUser<string>
+    {
+        /// <summary>
+        /// Initializes a new instance of <see cref="T:Microsoft.AspNetCore.Identity.IdentityUser" />.
+        /// </summary>
+        /// <remarks>
+        /// The Id property is initialized to form a new GUID string value.
+        /// </remarks>
+        public IdentityUser()
+        {
+            Id = Guid.NewGuid().ToString();
+        }
+    }
+
+    /// <inheritdoc />
+    /// <summary>
+    /// Represents a user in the Identity framework.
+    /// </summary>
+    /// <typeparam name="TKey">The type used for the primary key for the user.</typeparam>
+    public class IdentityUser<TKey> : IdentityUser<TKey, IdentityClaim, IdentityUserLogin, IdentityUserToken> where TKey : IEquatable<TKey> { }
+
+    /// <summary>Represents a user in the Identity framework.</summary>
     /// <typeparam name="TKey">The type used for the primary key for the user.</typeparam>
     /// <typeparam name="TIdentityClaim">The type representing a claim.</typeparam>
     /// <typeparam name="TIdentityUserLogin">The type representing a user external login.</typeparam>
@@ -19,6 +47,7 @@ namespace AspNet.Identity.MongoDb
         /// </summary>
         public IdentityUser()
         {
+            Roles = new List<string>();
             Claims = new List<TIdentityClaim>();
             Logins = new List<TIdentityUserLogin>();
             Tokens = new List<TIdentityUserToken>();
@@ -36,6 +65,7 @@ namespace AspNet.Identity.MongoDb
         }
 
         /// <summary>Gets or sets the primary key for this user.</summary>
+        [BsonId]
         public virtual TKey Id { get; set; }
 
         /// <summary>Gets or sets the user name for this user.</summary>
@@ -99,6 +129,12 @@ namespace AspNet.Identity.MongoDb
         /// Gets or sets the number of failed login attempts for the current user.
         /// </summary>
         public virtual int AccessFailedCount { get; set; }
+
+        /// <summary>
+        /// Gets the uppper case role names for the current user.
+        /// </summary>
+        /// <remarks>Use string to simplify the solution. We can tolerate the inconsistency with roles in RoleStore.</remarks>
+        public virtual List<string> Roles { get; }
 
         /// <summary>
         /// Gets the claims for the current user.
