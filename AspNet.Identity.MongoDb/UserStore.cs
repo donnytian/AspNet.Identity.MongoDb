@@ -108,7 +108,7 @@ namespace AspNet.Identity.MongoDb
         /// <summary>
         /// The default collection name.
         /// </summary>
-        public const string DefaultCollectionName = "AspNetRoles";
+        public const string DefaultCollectionName = "AspNetUsers";
 
         /// <summary>
         /// Gets or sets the <see cref="T:Microsoft.AspNetCore.Identity.IdentityErrorDescriber" /> for any error that occurred with the current operation.

@@ -39,7 +39,7 @@ namespace AspNet.Identity.MongoDb
             // RoleStore
             if (roleType != null)
             {
-                genericBaseTypeInfo = FindGenericBaseTypeInfo(userType, typeof(IdentityRole<,>));
+                genericBaseTypeInfo = FindGenericBaseTypeInfo(roleType, typeof(IdentityRole<,>));
 
                 if (genericBaseTypeInfo == null) throw new InvalidOperationException($"Role type must inherit {typeof(IdentityRole)} or its generic base classes.");
 

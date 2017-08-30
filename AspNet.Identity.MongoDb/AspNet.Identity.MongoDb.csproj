@@ -7,7 +7,7 @@
     <Description>A MongoDb provider for ASP.NET Identity built on .Net Standard</Description>
     <PackageProjectUrl>https://github.com/donnytian/AspNet.Identity.MongoDb</PackageProjectUrl>
     <PackageTags>aspnet,aspnetcore,identity,aspnetidentity,mongodb,netstandard</PackageTags>
-    <Version>1.0.0-beta2</Version>
+    <Version>1.0.0-rc1</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Product />
     <PackageId>NETStandard.AspNet.Identity.MongoDb</PackageId>
