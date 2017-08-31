@@ -1,2 +1,2 @@
 # AspNet.Identity.MongoDb
-A MongoDb provider for ASP.NET Identity built on .Net Standard
+A MongoDb provider for ASP.NET Core Identity built on .Net Standard
